@@ -587,7 +587,7 @@ function roomCard(h){
   var target = ui.sel && !h.bloqueada ? ' target' : '';
   return '<div class="room st-'+est+target+'" data-hab="'+h.id+'">'+
     '<div class="rh"><span class="num">'+esc(h.num)+'</span><span class="tipo">'+esc(t.nombre)+'</span><span class="pill '+est+'">'+(est==='bloq'?'Bloqueada':occ.length+'/'+cap)+'</span><button class="ib" data-edith="'+h.id+'" title="Editar habitación">⋯</button></div>'+
-    '<div class="beds">'+beds+'</div>'+
+    '<div class="beds" title="Lugares: '+occ.length+' de '+cap+' personas">'+beds+'</div>'+
     '<ul class="occ">'+lis+'</ul>'+
     (flags.length?'<div class="rflags">'+flags.join('')+'</div>':'')+
     (h.notas?'<div class="rnote">'+esc(h.notas)+'</div>':'')+
@@ -640,10 +640,10 @@ function renderRooming(v){
       '<div class="stat libre"><b>'+cnt.libre+'</b><span>Hab. libres</span></div>'+
       '<div class="stat parcial"><b>'+cnt.parcial+'</b><span>A medio ocupar</span></div>'+
       '<div class="stat completa"><b>'+(cnt.completa+cnt.sobre)+'</b><span>Completas</span></div>'+
-      '<div class="stat"><b>'+libresCamas+'</b><span>Camas libres</span></div>'+
-      '<div class="stat wide"><span>Ocupación: '+ocup+' de '+camas+' camas ('+pct+'%)'+(cnt.bloq?' · '+cnt.bloq+' bloqueada'+(cnt.bloq>1?'s':''):'')+'</span><div class="bar"><i style="width:'+pct+'%;background:var(--accent)"></i></div>'+
+      '<div class="stat"><b>'+libresCamas+'</b><span>Lugares libres</span></div>'+
+      '<div class="stat wide"><span title="Se cuenta por personas: una matrimonial son 2 lugares, una single matrimonial 1.">Ocupación: '+ocup+' de '+camas+' lugares ('+pct+'%)'+(cnt.bloq?' · '+cnt.bloq+' bloqueada'+(cnt.bloq>1?'s':''):'')+'</span><div class="bar"><i style="width:'+pct+'%;background:var(--accent)"></i></div>'+
         '<div class="small muted" style="margin-top:6px">'+P.length+' personas · <span style="color:var(--h);font-weight:700">'+nH+' H</span> · <span style="color:var(--m);font-weight:700">'+nM+' M</span>'+(llegaron?' · '+llegaron+' llegaron':'')+'</div>'+
-        (faltan>libresCamas?'<div class="small" style="color:var(--sobre);font-weight:700;margin-top:4px">⚠ Faltan '+(faltan-libresCamas)+' camas para los que quedan sin ubicar</div>':'')+
+        (faltan>libresCamas?'<div class="small" style="color:var(--sobre);font-weight:700;margin-top:4px">⚠ Faltan '+(faltan-libresCamas)+' lugar'+((faltan-libresCamas)!==1?'es':'')+' para los que quedan sin ubicar</div>':'')+
       '</div>'+
     '</div></div>'+
     cardDuplicados()+
@@ -670,7 +670,7 @@ function renderRooming(v){
       (pisos().length>1?'<select id="fPiso"><option value="__todos">Todos los pisos</option>'+pisos().map(function(p){return '<option value="'+esc(p)+'"'+(ui.fPiso===p?' selected':'')+'>'+(p?'Piso '+esc(p):'Sin piso')+'</option>';}).join('')+'</select>':'')+
       '<select id="fGen"><option value="">H y M</option><option value="H"'+(ui.fGen==='H'?' selected':'')+'>Solo hombres</option><option value="M"'+(ui.fGen==='M'?' selected':'')+'>Solo mujeres</option><option value="mix"'+(ui.fGen==='mix'?' selected':'')+'>Mixtas</option></select>'+
     '</div>'+
-    '<div class="legend"><span><i style="background:var(--libre)"></i>Libre</span><span><i style="background:var(--parcial)"></i>A medio ocupar</span><span><i style="background:var(--completa)"></i>Completa</span><span><i style="background:var(--sobre)"></i>Sobrecupo</span><span><i style="background:var(--bloq)"></i>Bloqueada</span><span><i style="background:var(--h)"></i>Hombre</span><span><i style="background:var(--m)"></i>Mujer</span></div>';
+    '<div class="legend"><span><i style="background:var(--libre)"></i>Libre</span><span><i style="background:var(--parcial)"></i>A medio ocupar</span><span><i style="background:var(--completa)"></i>Completa</span><span><i style="background:var(--sobre)"></i>Sobrecupo</span><span><i style="background:var(--bloq)"></i>Bloqueada</span><span><i style="background:var(--h)"></i>Hombre</span><span><i style="background:var(--m)"></i>Mujer</span><span>Cada rayita = 1 lugar (una matrimonial tiene 2)</span></div>';
 
   var lista=habsOrdenadas().filter(filtraHab);
   var porPiso={}, ordenP=[];
@@ -834,7 +834,7 @@ function renderHabitaciones(v){
      '<div class="row" style="margin-top:12px"><button class="btn primary" id="bCrear">Crear habitaciones</button><span class="small muted" id="cbPrev"></span></div>'+
     '</div>'+
    '</div>'+
-   '<div class="card"><h2>3 · Habitaciones del hotel ('+state.habs.length+')</h2><p class="small muted" style="margin-top:-4px">'+totCamas+' camas disponibles'+(state.habs.length?' · '+resumen.filter(function(r){return r.n;}).map(function(r){return r.n+' '+esc(r.t.nombre.toLowerCase());}).join(', '):'')+'</p>'+
+   '<div class="card"><h2>3 · Habitaciones del hotel ('+state.habs.length+')</h2><p class="small muted" style="margin-top:-4px">'+totCamas+' lugares (personas que se pueden alojar)'+(state.habs.length?' · '+resumen.filter(function(r){return r.n;}).map(function(r){return r.n+' '+esc(r.t.nombre.toLowerCase());}).join(', '):'')+'</p>'+
     (state.habs.length?
     '<div class="tblwrap"><table class="tbl"><thead><tr><th>Nº</th><th>Piso</th><th>Tipo</th><th title="Mixta permitida">Mixta</th><th title="Bloqueada">Bloq.</th><th>Notas</th><th>Ocup.</th><th></th></tr></thead><tbody>'+
      habsOrdenadas().map(function(h){
@@ -1529,8 +1529,8 @@ function exportarExcel(){
   var pc=state.pers.slice().sort(function(a,b){return natCmp(grupoDe(a),grupoDe(b))||natCmp(a.nombre,b.nombre);}).map(function(p){ var h=habById(p.habId); return {'Cuartel':grupoDe(p),'Nombre':p.nombre,'DNI':p.dni||'','Género':GEN[p.genero||''],'Cargo':p.cargo||'','Cubre Federación':p.cubre||'','Habitación':h?h.num:'—','Piso':h?(h.piso||''):'','Llegó':p.llego?'Sí':''}; });
   var ws3=XLSX.utils.json_to_sheet(pc.length?pc:[{'Cuartel':''}]); ws3['!cols']=[{wch:22},{wch:28},{wch:12},{wch:9},{wch:18},{wch:10},{wch:11},{wch:6},{wch:6}];
   XLSX.utils.book_append_sheet(wb, ws3, 'Por cuartel');
-  var res=state.tipos.map(function(t){ var hs=state.habs.filter(function(h){return h.tipoId===t.id;}); var occ=0; hs.forEach(function(h){occ+=occOf(h).length;}); return {'Tipo':t.nombre,'Habitaciones':hs.length,'Camas':hs.length*t.cap,'Ocupadas':occ,'Libres':Math.max(0,hs.length*t.cap-occ)}; }).filter(function(r){return r['Habitaciones'];});
-  var ws4=XLSX.utils.json_to_sheet(res.length?res:[{'Tipo':''}]); ws4['!cols']=[{wch:24},{wch:13},{wch:8},{wch:10},{wch:8}];
+  var res=state.tipos.map(function(t){ var hs=state.habs.filter(function(h){return h.tipoId===t.id;}); var occ=0; hs.forEach(function(h){occ+=occOf(h).length;}); return {'Tipo':t.nombre,'Habitaciones':hs.length,'Lugares (personas)':hs.length*t.cap,'Ocupadas':occ,'Libres':Math.max(0,hs.length*t.cap-occ)}; }).filter(function(r){return r['Habitaciones'];});
+  var ws4=XLSX.utils.json_to_sheet(res.length?res:[{'Tipo':''}]); ws4['!cols']=[{wch:24},{wch:13},{wch:18},{wch:10},{wch:8}];
   var cs=state.pers.filter(function(p){return p.cubre==='Sí';}), cn=state.pers.filter(function(p){return p.cubre==='No';});
   var csH=cs.filter(function(p){return p.habId;}).length, cnH=cn.filter(function(p){return p.habId;}).length;
   XLSX.utils.sheet_add_aoa(ws4, [[],['Cubre Federación','Personas','Con habitación'],['Sí',cs.length,csH],['No',cn.length,cnH],['Sin definir',state.pers.length-cs.length-cn.length,'']], {origin:-1});
