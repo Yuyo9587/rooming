@@ -1082,9 +1082,9 @@ function separarAcomp(txt){
   return out;
 }
 var CAMPOS=[
-  ['nombre','Nombre completo',/^(nombre y apellido|apellido y nombre|nombre completo|apellido y nombres|nombres? y apellidos?)/],
   ['nombres','Nombre(s)',/^nombres?\b/],
   ['apellidos','Apellido(s)',/^apellidos?\b/],
+  ['nombre','Nombre y apellido juntos (solo si están en una misma columna)',/^(nombre y apellido|apellido y nombre|nombre completo|apellido y nombres|nombres? y apellidos?)/],
   ['dni','DNI',/(^|\s)d\.?\s*n\.?\s*i|documento/],
   ['cargo','Cargo',/cargo|funcion|puesto/],
   ['cuartel','Cuartel / institución',/cuartel|institucion|asociacion|localidad|region/],
@@ -1092,15 +1092,22 @@ var CAMPOS=[
   ['acomp','Acompañantes',/acompa/],
   ['notas','Notas',/observ|nota|comentario|dieta|alimenta|alerg/]
 ];
-function autoMapeo(head){
+function autoMapeo(head, sinMemoria){
   var norm=head.map(function(h){ return sinTildes(h).toLowerCase().replace(/\s+/g,' ').trim(); });
-  var usado={}, map={}, prev=state.evento.mapeo||{};
+  var usado={}, map={}, prev=sinMemoria?{}:(state.evento.mapeo||{});
+  var hayNomSep = norm.some(function(n){ return /^nombres?\b/.test(n); }) && norm.some(function(n){ return /^apellidos?\b/.test(n); });
+  var esAcomp=function(h){ return /acompa/.test(sinTildes(h).toLowerCase()); };
   CAMPOS.forEach(function(c){
-    if(prev[c[0]] && head.indexOf(prev[c[0]])>-1 && !usado[prev[c[0]]]){ map[c[0]]=prev[c[0]]; usado[prev[c[0]]]=1; }
+    var h=prev[c[0]];
+    if(!h || head.indexOf(h)<0 || usado[h]) return;
+    if(c[0]!=='acomp' && esAcomp(h)) return;           // la columna de acompañantes nunca es nombre, cargo, etc.
+    if(c[0]==='nombre' && hayNomSep) return;            // si hay Nombres y Apellidos separados, se usan esos
+    map[c[0]]=h; usado[h]=1;
   });
   var ORDEN=['nombre','nombres','apellidos','dni','acomp','genero','cargo','cuartel','notas'];
   ORDEN.map(function(k){ return CAMPOS.filter(function(c){return c[0]===k;})[0]; }).forEach(function(c){
-    if(map[c[0]]!==undefined || prev.hasOwnProperty(c[0]) && prev[c[0]]==='' ) return;
+    if(map[c[0]]!==undefined) return;
+    if(c[0]==='nombre' && hayNomSep) return;
     for(var i=0;i<norm.length;i++){ if(!usado[head[i]] && c[2].test(norm[i])){ map[c[0]]=head[i]; usado[head[i]]=1; return; } }
   });
   if(map.nombre){ delete map.nombres; delete map.apellidos; }
@@ -1159,6 +1166,7 @@ function abrirMapeo(filas, titulo, auto){
   var md=abrirModal(
     '<h2>Traer inscriptos</h2><p class="small muted" style="margin-top:-6px">'+esc(titulo)+' · '+(filas.length-1)+' respuestas. Revisá qué columna va en cada dato.</p>'+
     '<div class="mapgrid">'+CAMPOS.map(function(c){ return '<span>'+c[1]+'</span>'+sel(c[0]); }).join('')+'</div>'+
+    '<div style="margin-top:6px"><button class="btn sm" id="mAuto" type="button">↺ Volver a elegir las columnas automáticamente</button></div>'+
     '<div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">'+
       '<label class="chk"><input type="checkbox" id="oAcomp"'+(opt.acomp?' checked':'')+'> Sumar a los acompañantes como personas aparte</label>'+
       '<label class="chk"><input type="checkbox" id="oRegion"'+(opt.region?' checked':'')+'> Guardar la región que figura en el cargo (sirve para agrupar mientras no tengan cuartel)</label>'+
@@ -1178,7 +1186,11 @@ function abrirMapeo(filas, titulo, auto){
   var refrescar=function(){
     var r=leer(); var lista=construirPersonas(filas, r.m, r.op); calc=clasificar(lista); calc.r=r;
     var faltaNom=!r.m.nombre && !r.m.nombres && !r.m.apellidos;
-    $('#mResumen',md).innerHTML = faltaNom ? '<span class="errmsg">Elegí la columna del nombre.</span>' :
+    var avisoCol='';
+    if(r.m.nombre && /acompa/i.test(sinTildes(r.m.nombre))) avisoCol='⚠ En “Nombre y apellido juntos” elegiste la columna de acompañantes. Dejala en “no usar” y elegí Nombres y Apellidos.';
+    else if(r.m.nombre && (r.m.nombres||r.m.apellidos)) avisoCol='⚠ Elegiste nombre por separado y también “juntos”. Usá una sola de las dos formas.';
+    else if(['nombres','apellidos','dni','cargo'].some(function(k){ return r.m[k] && /acompa/i.test(sinTildes(r.m[k])); })) avisoCol='⚠ La columna de acompañantes está elegida en un casillero que no corresponde.';
+    $('#mResumen',md).innerHTML = faltaNom ? '<span class="errmsg">Elegí la columna del nombre.</span>' : (avisoCol?'<div class="errmsg" style="margin-bottom:6px">'+avisoCol+'</div>':'')+
       '<b>'+calc.nuevos.length+' nuevo'+(calc.nuevos.length!==1?'s':'')+'</b> para agregar'+
       (calc.yaEstan.length?' · '+calc.yaEstan.length+' ya estaban (se completan datos que falten)':'')+
       (calc.omitidos?' · '+calc.omitidos+' que borraste antes (no se vuelven a agregar)':'')+
@@ -1188,9 +1200,14 @@ function abrirMapeo(filas, titulo, auto){
     $('#mPrev',md).innerHTML = muestra.length ? '<table class="tbl"><thead><tr><th>Nombre</th><th>DNI</th><th>Gén.</th><th>Cuartel / región</th><th>Cargo</th></tr></thead><tbody>'+
       muestra.map(function(p){ return '<tr><td>'+esc(p.nombre)+'</td><td>'+esc(p.dni)+'</td><td>'+(p.genero?genLetra(p.genero)+(p.genSug?'?':''):'—')+'</td><td>'+esc(grupoDe(p))+'</td><td>'+esc(p.cargo)+'</td></tr>'; }).join('')+
       (calc.nuevos.length>40?'<tr><td colspan="5" class="muted">…y '+(calc.nuevos.length-40)+' más</td></tr>':'')+'</tbody></table>' : '<div class="muted" style="padding:10px">No hay personas nuevas para agregar.</div>';
-    $('#mOk',md).disabled = faltaNom || (!calc.nuevos.length && !calc.yaEstan.length);
+    $('#mOk',md).disabled = faltaNom || !!avisoCol || (!calc.nuevos.length && !calc.yaEstan.length);
   };
   $all('select,input',md).forEach(function(el){ el.onchange=refrescar; });
+  $('#mAuto',md).onclick=function(){
+    var am=autoMapeo(head, true);
+    $all('[data-map]',md).forEach(function(s){ s.value=am[s.dataset.map]||''; });
+    refrescar(); toast('Columnas elegidas de nuevo automáticamente');
+  };
   refrescar();
   $('#mCan',md).onclick=cerrarModal;
   $('#mOk',md).onclick=function(){
